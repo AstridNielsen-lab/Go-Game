@@ -156,11 +156,26 @@ function App() {
   if (showNameScreen) {
     return <PlayerNameScreen onSubmit={handleNameSubmit} />;
   }
+
+  const renderSpaceParticles = () => {
+    return Array.from({ length: 50 }).map((_, i) => (
+      <div
+        key={i}
+        className="space-particle"
+        style={{
+          left: `${Math.random() * 100}%`,
+          top: `${Math.random() * 100}%`,
+          animationDelay: `${Math.random() * 8}s`,
+        }}
+      />
+    ));
+  };
   
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden">
       <div className="absolute inset-0 bg-black">
         <div className="absolute inset-0 animate-universe-bg" />
+        {renderSpaceParticles()}
       </div>
       
       <main className="relative flex-grow py-8 px-4">
@@ -195,7 +210,7 @@ function App() {
             </div>
             
             <div className="order-first lg:order-last space-y-6">
-              <div className="bg-white/10 backdrop-blur-md p-4 rounded-lg shadow-xl">
+              <div className="bg-gray-800/50 backdrop-blur-md p-4 rounded-lg shadow-xl">
                 <h2 className="text-xl font-semibold mb-3 text-center text-white font-serif">Instruções</h2>
                 <div className="text-white/80">
                   <p className="mb-2">
