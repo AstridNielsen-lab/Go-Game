@@ -6,9 +6,10 @@ import { getStoneAt, isValidMove } from '../utils/gameLogic';
 interface BoardProps {
   boardState: BoardState;
   onPlaceStone: (pos: Position) => void;
+  isAIThinking?: boolean;
 }
 
-const Board: React.FC<BoardProps> = ({ boardState, onPlaceStone }) => {
+const Board: React.FC<BoardProps> = ({ boardState, onPlaceStone, isAIThinking }) => {
   const [hoveredPosition, setHoveredPosition] = useState<Position | null>(null);
   const [boardSizePixels, setBoardSizePixels] = useState<number>(0);
   const boardRef = useRef<HTMLDivElement>(null);
@@ -27,7 +28,7 @@ const Board: React.FC<BoardProps> = ({ boardState, onPlaceStone }) => {
   const cellSize = boardSizePixels / boardState.boardSize;
 
   const handleIntersectionClick = (x: number, y: number) => {
-    if (isValidMove(boardState, { x, y })) {
+    if (!isAIThinking && isValidMove(boardState, { x, y })) {
       onPlaceStone({ x, y });
     }
   };
@@ -48,7 +49,7 @@ const Board: React.FC<BoardProps> = ({ boardState, onPlaceStone }) => {
 
   const renderIntersection = (x: number, y: number) => {
     const stone = getStoneAt(boardState.stones, x, y);
-    const isHovered = hoveredPosition?.x === x && hoveredPosition?.y === y && !stone;
+    const isHovered = hoveredPosition?.x === x && hoveredPosition?.y === y && !stone && !isAIThinking;
     const stoneSize = cellSize * 0.9;
     const isStarPoint = isHoshiPoint(x, y, boardState.boardSize);
 
@@ -63,12 +64,13 @@ const Board: React.FC<BoardProps> = ({ boardState, onPlaceStone }) => {
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
+          cursor: isAIThinking ? 'not-allowed' : 'pointer',
         }}
         onClick={() => handleIntersectionClick(x, y)}
-        onMouseEnter={() => setHoveredPosition({ x, y })}
+        onMouseEnter={() => !isAIThinking && setHoveredPosition({ x, y })}
         onMouseLeave={() => setHoveredPosition(null)}
       >
-        {/* Linhas do tabuleiro */}
+        {/* Grid lines */}
         <div
           style={{
             position: 'absolute',
@@ -88,7 +90,7 @@ const Board: React.FC<BoardProps> = ({ boardState, onPlaceStone }) => {
           }}
         />
 
-        {/* Hoshi (ponto estrela) */}
+        {/* Star point */}
         {isStarPoint && (
           <div
             style={{
@@ -102,7 +104,7 @@ const Board: React.FC<BoardProps> = ({ boardState, onPlaceStone }) => {
           />
         )}
 
-        {/* Pedra existente */}
+        {/* Stone */}
         {stone && (
           <Stone
             color={stone.color}
@@ -111,8 +113,8 @@ const Board: React.FC<BoardProps> = ({ boardState, onPlaceStone }) => {
           />
         )}
 
-        {/* Indicador de hover */}
-        {isHovered && (
+        {/* Hover indicator */}
+        {isHovered && isValidMove(boardState, { x, y }) && (
           <div
             style={{
               position: 'absolute',
@@ -151,9 +153,10 @@ const Board: React.FC<BoardProps> = ({ boardState, onPlaceStone }) => {
         justifyContent: 'center',
         alignItems: 'center',
         height: '100vh',
-        backgroundColor: '#222', // fundo escuro elegante
+        backgroundColor: '#222',
         padding: '1rem',
         boxSizing: 'border-box',
+        position: 'relative',
       }}
     >
       <div
@@ -168,10 +171,21 @@ const Board: React.FC<BoardProps> = ({ boardState, onPlaceStone }) => {
           boxShadow: '0 8px 20px rgba(0,0,0,0.4)',
           display: 'flex',
           flexDirection: 'column',
+          opacity: isAIThinking ? 0.8 : 1,
+          transition: 'opacity 0.3s ease',
         }}
       >
         {renderBoard()}
       </div>
+      
+      {isAIThinking && (
+        <div 
+          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
+                     bg-black bg-opacity-50 text-white px-4 py-2 rounded-lg z-50"
+        >
+          IA pensando...
+        </div>
+      )}
     </div>
   );
 };
