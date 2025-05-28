@@ -13,9 +13,28 @@
   }
 }
 
+@keyframes universe-bg {
+  0% { background-color: #000066; }
+  20% { background-color: #660066; }
+  40% { background-color: #006666; }
+  60% { background-color: #666600; }
+  80% { background-color: #660000; }
+  100% { background-color: #000066; }
+}
+
+.animate-universe-bg {
+  animation: universe-bg 20s infinite;
+  opacity: 0.3;
+  background-blend-mode: screen;
+  background-image: 
+    radial-gradient(circle at center, transparent 0%, black 100%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  background-color: #f8f8f8;
+  background-color: #000;
+  color: #fff;
 }
 
 /* Custom styles for the game */

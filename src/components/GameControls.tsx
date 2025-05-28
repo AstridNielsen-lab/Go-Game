@@ -146,4 +146,4 @@ const GameControls: React.FC<GameControlsProps> = ({
   );
 };
 
-export default GameControls
+export default GameControls;
