@@ -96,7 +96,10 @@ function App() {
               </ul>
             </div>
             
-            <AITeacher boardState={boardState} />
+            <AITeacher 
+              boardState={boardState}
+              onPlayMove={handlePlaceStone}
+            />
             
             <ScorePanel boardState={boardState} />
           </div>
@@ -104,6 +107,6 @@ function App() {
       </div>
     </div>
   );
-}
+};
 
 export default App;
