@@ -107,9 +107,9 @@ const AITeacher: React.FC<AITeacherProps> = ({ boardState, onPlayMove }) => {
   };
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-md mb-6">
+    <div className="bg-gray-800/50 backdrop-blur-md p-4 rounded-lg shadow-xl">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-semibold">Professor de Go</h3>
+        <h3 className="text-xl font-semibold text-white">Professor de Go</h3>
         {onPlayMove && (
           <button
             onClick={handleAIPlay}
@@ -128,7 +128,7 @@ const AITeacher: React.FC<AITeacherProps> = ({ boardState, onPlayMove }) => {
             type="text"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
-            className="flex-1 p-2 border rounded-md"
+            className="flex-1 p-2 border rounded-md bg-gray-700 text-white border-gray-600 focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
             placeholder="Faça uma pergunta sobre Go..."
           />
           <button
@@ -149,16 +149,16 @@ const AITeacher: React.FC<AITeacherProps> = ({ boardState, onPlayMove }) => {
       </form>
 
       {listening && (
-        <div className="text-sm text-gray-600 mb-2">
+        <div className="text-sm text-gray-300 mb-2">
           Ouvindo: {transcript}
         </div>
       )}
 
       {isLoading ? (
-        <div className="text-gray-600">Pensando...</div>
+        <div className="text-gray-300">Pensando...</div>
       ) : response && (
-        <div className="bg-gray-50 p-3 rounded-md">
-          <p className="text-gray-800">{response}</p>
+        <div className="bg-gray-700/50 p-3 rounded-md">
+          <p className="text-gray-200">{response}</p>
         </div>
       )}
     </div>

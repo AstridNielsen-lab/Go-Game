@@ -33,10 +33,10 @@ const GameControls: React.FC<GameControlsProps> = ({
   };
   
   return (
-    <div className="game-controls p-4 bg-gray-100 rounded-lg shadow-sm mb-4">
+    <div className="game-controls p-4 bg-gray-800/50 backdrop-blur-md rounded-lg shadow-xl mb-4">
       <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
         <div className="text-center sm:text-left mb-4 sm:mb-0">
-          <h3 className="text-lg font-semibold mb-2">
+          <h3 className="text-lg font-semibold mb-2 text-white">
             {gameOver 
               ? "Game Over" 
               : `Current Player: ${currentPlayer === 'black' ? 'Black' : 'White'}`}
@@ -51,7 +51,7 @@ const GameControls: React.FC<GameControlsProps> = ({
               }}
             />
             {playingWithAI && (
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-300">
                 {currentPlayer === 'white' ? '(IA pensando...)' : '(Sua vez)'}
               </span>
             )}
@@ -60,7 +60,7 @@ const GameControls: React.FC<GameControlsProps> = ({
         
         <div className="flex flex-wrap gap-2 justify-center">
           <button
-            className={`px-3 py-2 ${playingWithAI ? 'bg-green-500 text-white' : 'bg-white text-gray-800'} hover:opacity-90 rounded-md shadow-sm transition-colors flex items-center`}
+            className={`px-3 py-2 ${playingWithAI ? 'bg-green-500 text-white' : 'bg-gray-700 text-white'} hover:opacity-90 rounded-md shadow-sm transition-colors flex items-center`}
             onClick={onToggleAI}
             disabled={isAIThinking}
           >
@@ -69,7 +69,7 @@ const GameControls: React.FC<GameControlsProps> = ({
           </button>
 
           <button
-            className="px-3 py-2 bg-white hover:bg-gray-50 text-gray-800 rounded-md shadow-sm transition-colors flex items-center"
+            className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md shadow-sm transition-colors flex items-center"
             onClick={onPass}
             disabled={gameOver || isAIThinking}
           >
@@ -78,7 +78,7 @@ const GameControls: React.FC<GameControlsProps> = ({
           </button>
           
           <button
-            className="px-3 py-2 bg-white hover:bg-gray-50 text-gray-800 rounded-md shadow-sm transition-colors flex items-center"
+            className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md shadow-sm transition-colors flex items-center"
             onClick={onResign}
             disabled={gameOver || isAIThinking}
           >
@@ -87,7 +87,7 @@ const GameControls: React.FC<GameControlsProps> = ({
           </button>
           
           <button
-            className="px-3 py-2 bg-white hover:bg-gray-50 text-gray-800 rounded-md shadow-sm transition-colors flex items-center"
+            className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md shadow-sm transition-colors flex items-center"
             onClick={onRestart}
             disabled={isAIThinking}
           >
@@ -97,12 +97,12 @@ const GameControls: React.FC<GameControlsProps> = ({
         </div>
       </div>
       
-      <div className="border-t border-gray-200 pt-4">
+      <div className="border-t border-gray-600 pt-4">
         <div className="flex justify-center items-center space-x-4">
-          <span className="text-sm font-medium">Board Size:</span>
+          <span className="text-sm font-medium text-white">Board Size:</span>
           
           <button
-            className="w-8 h-8 flex items-center justify-center bg-white hover:bg-gray-50 rounded shadow-sm transition-colors"
+            className="w-8 h-8 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded shadow-sm transition-colors"
             onClick={() => handleSizeChange(currentBoardSize - 2)}
             disabled={currentBoardSize <= 9 || isAIThinking}
           >
@@ -111,21 +111,21 @@ const GameControls: React.FC<GameControlsProps> = ({
           
           <div className="flex space-x-2">
             <button
-              className={`px-2 py-1 rounded ${currentBoardSize === 9 ? 'bg-blue-500 text-white' : 'bg-white text-gray-800 hover:bg-gray-50'}`}
+              className={`px-2 py-1 rounded ${currentBoardSize === 9 ? 'bg-blue-500 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'}`}
               onClick={() => onChangeSize(9)}
               disabled={isAIThinking}
             >
               9×9
             </button>
             <button
-              className={`px-2 py-1 rounded ${currentBoardSize === 13 ? 'bg-blue-500 text-white' : 'bg-white text-gray-800 hover:bg-gray-50'}`}
+              className={`px-2 py-1 rounded ${currentBoardSize === 13 ? 'bg-blue-500 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'}`}
               onClick={() => onChangeSize(13)}
               disabled={isAIThinking}
             >
               13×13
             </button>
             <button
-              className={`px-2 py-1 rounded ${currentBoardSize === 19 ? 'bg-blue-500 text-white' : 'bg-white text-gray-800 hover:bg-gray-50'}`}
+              className={`px-2 py-1 rounded ${currentBoardSize === 19 ? 'bg-blue-500 text-white' : 'bg-gray-700 text-white hover:bg-gray-600'}`}
               onClick={() => onChangeSize(19)}
               disabled={isAIThinking}
             >
@@ -134,7 +134,7 @@ const GameControls: React.FC<GameControlsProps> = ({
           </div>
           
           <button
-            className="w-8 h-8 flex items-center justify-center bg-white hover:bg-gray-50 rounded shadow-sm transition-colors"
+            className="w-8 h-8 flex items-center justify-center bg-gray-700 hover:bg-gray-600 text-white rounded shadow-sm transition-colors"
             onClick={() => handleSizeChange(currentBoardSize + 2)}
             disabled={currentBoardSize >= 19 || isAIThinking}
           >
