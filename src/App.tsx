@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSound } from 'use-sound';
+import { io } from 'socket.io-client';
 import Board from './components/Board';
 import GameControls from './components/GameControls';
 import ScorePanel from './components/ScorePanel';
@@ -9,10 +10,14 @@ import SplashScreen from './components/SplashScreen';
 import PlayerNameScreen from './components/PlayerNameScreen';
 import GameTimer from './components/GameTimer';
 import GameLogs from './components/GameLogs';
+import MultiplayerControls from './components/MultiplayerControls';
 import { BoardState, Position } from './types/gameTypes';
 import { createInitialBoardState, playMove, passTurn, resignGame, isValidMove } from './utils/gameLogic';
 import { generateBestMove } from './utils/aiLogic';
 import { saveGameState, loadGameState, GameState } from './utils/storage';
+import { v4 as uuidv4 } from 'uuid';
+
+const socket = io('http://localhost:3001');
 
 function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -22,6 +27,7 @@ function App() {
   const [playingWithAI, setPlayingWithAI] = useState(false);
   const [isAIThinking, setIsAIThinking] = useState(false);
   const [gameLogs, setGameLogs] = useState<{ player: string; move: string; timestamp: string; }[]>([]);
+  const [gameId, setGameId] = useState<string | undefined>();
   const [play] = useSound('/sounds/stone.mp3');
   
   useEffect(() => {
@@ -34,6 +40,13 @@ function App() {
         currentPlayer: savedState.currentPlayer,
       }));
       setGameLogs(savedState.logs);
+    }
+
+    // Check for game ID in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const gameIdFromUrl = urlParams.get('game');
+    if (gameIdFromUrl) {
+      handleJoinGame(gameIdFromUrl);
     }
   }, []);
 
@@ -55,6 +68,28 @@ function App() {
     }
   }, [boardState.currentPlayer, playingWithAI]);
 
+  useEffect(() => {
+    socket.on('game_created', (id) => {
+      setGameId(id);
+    });
+
+    socket.on('game_joined', (id) => {
+      setGameId(id);
+    });
+
+    socket.on('move_made', (move) => {
+      if (move.player !== playerName) {
+        handlePlaceStone(move.position);
+      }
+    });
+
+    return () => {
+      socket.off('game_created');
+      socket.off('game_joined');
+      socket.off('move_made');
+    };
+  }, []);
+
   const handleSplashComplete = () => {
     setShowSplash(false);
     setShowNameScreen(true);
@@ -63,6 +98,17 @@ function App() {
   const handleNameSubmit = (name: string) => {
     setPlayerName(name);
     setShowNameScreen(false);
+  };
+
+  const handleCreateGame = () => {
+    const newGameId = uuidv4();
+    socket.emit('create_game', newGameId);
+    handleRestart(); // Start fresh game
+  };
+
+  const handleJoinGame = (id: string) => {
+    socket.emit('join_game', id);
+    handleRestart(); // Start fresh game
   };
 
   const addGameLog = (move: string) => {
@@ -83,6 +129,16 @@ function App() {
       const newBoardState = playMove(boardState, position);
       setBoardState(newBoardState);
       addGameLog(`(${position.x}, ${position.y})`);
+
+      if (gameId) {
+        socket.emit('make_move', {
+          gameId,
+          move: {
+            position,
+            player: playerName
+          }
+        });
+      }
     }
   };
 
@@ -157,25 +213,10 @@ function App() {
     return <PlayerNameScreen onSubmit={handleNameSubmit} />;
   }
 
-  const renderSpaceParticles = () => {
-    return Array.from({ length: 50 }).map((_, i) => (
-      <div
-        key={i}
-        className="space-particle"
-        style={{
-          left: `${Math.random() * 100}%`,
-          top: `${Math.random() * 100}%`,
-          animationDelay: `${Math.random() * 8}s`,
-        }}
-      />
-    ));
-  };
-  
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden">
       <div className="absolute inset-0 bg-black">
         <div className="absolute inset-0 animate-universe-bg" />
-        {renderSpaceParticles()}
       </div>
       
       <main className="relative flex-grow py-8 px-4">
@@ -236,6 +277,11 @@ function App() {
           </div>
         </div>
       </main>
+      <MultiplayerControls
+        onCreateGame={handleCreateGame}
+        onJoinGame={handleJoinGame}
+        gameId={gameId}
+      />
       <Footer />
     </div>
   );
