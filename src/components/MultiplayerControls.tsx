@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Share2, Users, Copy, ExternalLink } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
+import { Share2, Users, Copy, ExternalLink, Loader } from 'lucide-react';
 
 interface MultiplayerControlsProps {
   onJoinGame: (gameId: string, port: number) => void;
@@ -9,6 +8,7 @@ interface MultiplayerControlsProps {
 }
 
 const AVAILABLE_PORTS = [3001, 3002, 3003, 3004, 3005];
+const GAME_ID = 'GO2025';
 
 const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
   onJoinGame,
@@ -19,14 +19,14 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
   const [joinGameId, setJoinGameId] = useState('');
   const [copied, setCopied] = useState(false);
   const [serverStarted, setServerStarted] = useState(false);
+  const [isWaiting, setIsWaiting] = useState(false);
+  const [waitingPlayers, setWaitingPlayers] = useState<string[]>([]);
   const [selectedPort, setSelectedPort] = useState(() => {
     const savedPort = localStorage.getItem('selectedPort');
     return savedPort ? parseInt(savedPort) : 3001;
   });
-  const [showPortSelection, setShowPortSelection] = useState(false);
 
   useEffect(() => {
-    // Load saved game data
     const savedGameId = localStorage.getItem('gameId');
     const savedPort = localStorage.getItem('selectedPort');
     if (savedGameId && savedPort) {
@@ -35,7 +35,6 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
   }, []);
 
   useEffect(() => {
-    // Save game ID when it changes
     if (gameId) {
       localStorage.setItem('gameId', gameId);
     }
@@ -46,32 +45,24 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
       localStorage.setItem('selectedPort', selectedPort.toString());
       await fetch(`http://localhost:3000/start-server?port=${selectedPort}`);
       setServerStarted(true);
+      setIsWaiting(true);
       onCreateGame(selectedPort);
     } catch (error) {
       console.error('Failed to start server:', error);
     }
   };
 
-  const handleCreateGame = () => {
-    if (!serverStarted) {
-      setShowPortSelection(true);
-    } else {
-      onCreateGame(selectedPort);
-    }
-  };
-
-  const handlePortSelection = (port: number) => {
-    setSelectedPort(port);
-    setShowPortSelection(false);
-    startServerAndCreateGame();
-  };
-
   const handleJoinGame = (e: React.FormEvent) => {
     e.preventDefault();
-    if (joinGameId.trim()) {
-      onJoinGame(joinGameId.trim(), selectedPort);
+    if (joinGameId === GAME_ID) {
+      const randomPort = AVAILABLE_PORTS[Math.floor(Math.random() * AVAILABLE_PORTS.length)];
+      setSelectedPort(randomPort);
+      onJoinGame(GAME_ID, randomPort);
       setShowJoinInput(false);
       setJoinGameId('');
+      setIsWaiting(true);
+    } else {
+      alert('ID do jogo inválido. Use GO2025 para entrar.');
     }
   };
 
@@ -86,27 +77,30 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
 
   return (
     <div className="fixed bottom-4 right-4 flex flex-col gap-2">
-      {showPortSelection && (
+      {isWaiting && (
         <div className="bg-white/10 backdrop-blur-md p-4 rounded-lg shadow-xl">
-          <h3 className="text-white mb-3">Selecione uma porta para o servidor:</h3>
-          <div className="grid grid-cols-3 gap-2">
-            {AVAILABLE_PORTS.map(port => (
-              <button
-                key={port}
-                onClick={() => handlePortSelection(port)}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-md transition-colors"
-              >
-                Porta {port}
-              </button>
-            ))}
+          <div className="flex items-center gap-2 mb-3">
+            <Loader className="animate-spin text-blue-500\" size={20} />
+            <h3 className="text-white">Aguardando jogadores...</h3>
           </div>
+          {waitingPlayers.length > 0 && (
+            <div className="mb-3">
+              <p className="text-sm text-white/70">Jogadores na fila:</p>
+              <ul className="list-disc list-inside">
+                {waitingPlayers.map((player, index) => (
+                  <li key={index} className="text-white/70">{player}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <p className="text-sm text-white/50">ID do Jogo: {GAME_ID}</p>
         </div>
       )}
 
-      {!gameId && !showPortSelection && (
+      {!gameId && !isWaiting && (
         <>
           <button
-            onClick={handleCreateGame}
+            onClick={startServerAndCreateGame}
             className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 transition-colors"
           >
             <Share2 size={20} />
@@ -132,7 +126,7 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
             type="text"
             value={joinGameId}
             onChange={(e) => setJoinGameId(e.target.value)}
-            placeholder="Digite o ID do jogo"
+            placeholder="Digite GO2025 para entrar"
             className="w-full px-3 py-2 bg-white/20 rounded border border-white/30 text-white placeholder-white/50 mb-2"
           />
           <div className="flex gap-2">
@@ -155,7 +149,7 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
 
       {gameId && (
         <div className="bg-white/10 backdrop-blur-md p-4 rounded-lg shadow-xl">
-          <p className="text-white mb-2">ID do Jogo: {gameId}</p>
+          <p className="text-white mb-2">ID do Jogo: {GAME_ID}</p>
           <p className="text-white/70 text-sm mb-2">Porta: {selectedPort}</p>
           <div className="flex gap-2">
             <button

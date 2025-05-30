@@ -13,6 +13,7 @@ app.use(cors());
 
 const servers = new Map();
 const games = new Map();
+const waitingPlayers = new Map();
 
 app.get('/start-server', (req, res) => {
   const port = parseInt(req.query.port) || 3001;
@@ -29,25 +30,31 @@ app.get('/start-server', (req, res) => {
     io.on('connection', (socket) => {
       console.log('Client connected:', socket.id);
 
-      socket.on('create_game', (gameId) => {
-        games.set(gameId, {
-          players: [socket.id],
-          moves: [],
-          currentPlayer: 'black'
-        });
-        socket.join(gameId);
-        socket.emit('game_created', gameId);
-      });
+      socket.on('join_waiting_room', (playerName) => {
+        if (!waitingPlayers.has('GO2025')) {
+          waitingPlayers.set('GO2025', []);
+        }
+        const players = waitingPlayers.get('GO2025');
+        players.push({ id: socket.id, name: playerName });
+        waitingPlayers.set('GO2025', players);
+        
+        io.emit('waiting_players_updated', players.map(p => p.name));
 
-      socket.on('join_game', (gameId) => {
-        const game = games.get(gameId);
-        if (game && game.players.length < 2) {
-          game.players.push(socket.id);
-          socket.join(gameId);
-          socket.emit('game_joined', gameId);
-          io.to(gameId).emit('player_joined', socket.id);
-        } else {
-          socket.emit('game_full');
+        if (players.length >= 2) {
+          const [player1, player2] = players;
+          const gameId = 'GO2025';
+          
+          games.set(gameId, {
+            players: [player1.id, player2.id],
+            moves: [],
+            currentPlayer: 'black'
+          });
+
+          io.to(player1.id).emit('game_ready', { gameId, color: 'black' });
+          io.to(player2.id).emit('game_ready', { gameId, color: 'white' });
+          
+          waitingPlayers.set('GO2025', players.slice(2));
+          io.emit('waiting_players_updated', players.slice(2).map(p => p.name));
         }
       });
 
@@ -61,13 +68,16 @@ app.get('/start-server', (req, res) => {
       });
 
       socket.on('disconnect', () => {
+        if (waitingPlayers.has('GO2025')) {
+          const players = waitingPlayers.get('GO2025').filter(p => p.id !== socket.id);
+          waitingPlayers.set('GO2025', players);
+          io.emit('waiting_players_updated', players.map(p => p.name));
+        }
+        
         games.forEach((game, gameId) => {
           if (game.players.includes(socket.id)) {
-            game.players = game.players.filter(id => id !== socket.id);
             io.to(gameId).emit('player_left', socket.id);
-            if (game.players.length === 0) {
-              games.delete(gameId);
-            }
+            games.delete(gameId);
           }
         });
       });
@@ -96,7 +106,6 @@ app.get('/stop-server', (req, res) => {
   }
 });
 
-// Start the main server on port 3000
 const mainServer = app.listen(3000, () => {
   console.log('Main server running on port 3000');
 });
