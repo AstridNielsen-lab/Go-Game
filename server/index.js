@@ -3,11 +3,14 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import cors from 'cors';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
+app.use(cors());
+
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
@@ -17,6 +20,16 @@ const io = new Server(httpServer, {
 });
 
 const games = new Map();
+let server = null;
+
+app.get('/start-server', (req, res) => {
+  if (!server) {
+    server = httpServer.listen(3001, () => {
+      console.log('Server running on port 3001');
+    });
+  }
+  res.json({ status: 'Server started' });
+});
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
@@ -63,9 +76,4 @@ io.on('connection', (socket) => {
       }
     });
   });
-});
-
-const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
 });

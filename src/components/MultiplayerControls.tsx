@@ -17,9 +17,26 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
   const [showJoinInput, setShowJoinInput] = useState(false);
   const [joinGameId, setJoinGameId] = useState('');
   const [copied, setCopied] = useState(false);
+  const [serverStarted, setServerStarted] = useState(false);
+
+  const startServerAndCreateGame = async () => {
+    try {
+      // Start the server
+      await fetch('http://localhost:3001/start-server');
+      setServerStarted(true);
+      // Create the game
+      onCreateGame();
+    } catch (error) {
+      console.error('Failed to start server:', error);
+    }
+  };
 
   const handleCreateGame = () => {
-    onCreateGame();
+    if (!serverStarted) {
+      startServerAndCreateGame();
+    } else {
+      onCreateGame();
+    }
   };
 
   const handleJoinGame = (e: React.FormEvent) => {
