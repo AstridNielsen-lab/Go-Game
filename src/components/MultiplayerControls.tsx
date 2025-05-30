@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Share2, Users, Copy, ExternalLink, Loader, Info, Power, PowerOff, AlertCircle, CheckCircle2, Server } from 'lucide-react';
 
 interface MultiplayerControlsProps {
@@ -13,7 +13,12 @@ interface ConnectionLog {
   type: 'info' | 'error' | 'success';
 }
 
-const AVAILABLE_PORTS = [3001, 3002, 3003, 3004, 3005];
+const AVAILABLE_PORTS = [
+  3002, 3003, 3004, 3005,  // Primary ports first
+  3001, 7777, 27015, 27016, // Secondary ports
+  25565, 28015, 28016, 28017,
+  8080, 8081, 8082
+];
 const GAME_ID = 'GO2025';
 
 const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
@@ -30,6 +35,14 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
   const [showInfo, setShowInfo] = useState(false);
   const [connectionLogs, setConnectionLogs] = useState<ConnectionLog[]>([]);
   const [serverStatus, setServerStatus] = useState<'offline' | 'starting' | 'online' | 'error'>('offline');
+  const [connectionState, setConnectionState] = useState<'disconnected' | 'connecting' | 'connected' | 'reconnecting'>('disconnected');
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const [currentPortIndex, setCurrentPortIndex] = useState(0);
+  const socketRef = useRef<WebSocket | null>(null);
+  const maxReconnectAttempts = 15;        // Increased from 12
+  const reconnectDelay = 10000;           // Increased from 8000
+  const connectionTimeout = 20000;        // Increased from 15000
+  const timeoutRef = useRef<number | null>(null);
   const [selectedPort, setSelectedPort] = useState(() => {
     const savedPort = localStorage.getItem('selectedPort');
     return savedPort ? parseInt(savedPort) : 3001;
@@ -43,24 +56,48 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
     }]);
   };
 
-  useEffect(() => {
-    const savedGameId = localStorage.getItem('gameId');
-    const savedPort = localStorage.getItem('selectedPort');
-    if (savedGameId && savedPort) {
-      onJoinGame(savedGameId, parseInt(savedPort));
-      addLog(`Reconnecting to previous session (Port: ${savedPort})`, 'info');
+  // Function to establish WebSocket connection with timeout and reconnect capability
+  const connectToWaitingRoom = () => {
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
 
-    // Set up socket connection for waiting room updates
-    if (isWaiting) {
-      addLog('Connecting to waiting room...', 'info');
-      const socket = new WebSocket(`ws://localhost:${selectedPort}`);
-      
-      socket.onopen = () => {
-        addLog('Connected to waiting room successfully', 'success');
-      };
-      
-      socket.onmessage = (event) => {
+    // Close existing socket if any
+    if (socketRef.current) {
+      socketRef.current.close();
+      socketRef.current = null;
+    }
+
+    setConnectionState('connecting');
+    addLog('Connecting to waiting room...', 'info');
+    
+    // Create new WebSocket connection
+    const socket = new WebSocket(`ws://localhost:${selectedPort}`);
+    socketRef.current = socket;
+    
+    // Set connection timeout
+    timeoutRef.current = window.setTimeout(() => {
+      if (connectionState !== 'connected') {
+        addLog('Connection timeout - server not responding', 'error');
+        socket.close();
+        handleReconnect();
+      }
+    }, connectionTimeout);
+    
+    socket.onopen = () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      setConnectionState('connected');
+      setReconnectAttempts(0);
+      addLog('Connected to waiting room successfully', 'success');
+    };
+    
+    socket.onmessage = (event) => {
+      try {
         const data = JSON.parse(event.data);
         if (data.type === 'waiting_players_updated') {
           setWaitingPlayers(data.players);
@@ -70,18 +107,84 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
           onJoinGame(GAME_ID, selectedPort);
           addLog('Game is ready to start!', 'success');
         }
-      };
+      } catch (error) {
+        addLog(`Error processing message: ${error instanceof Error ? error.message : String(error)}`, 'error');
+      }
+    };
+    
+    socket.onerror = (error) => {
+      addLog(`WebSocket error: ${error instanceof Error ? error.message : 'Connection error'}`, 'error');
+      setServerStatus('error');
+    };
+    
+    socket.onclose = (event) => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
 
-      socket.onerror = (error) => {
-        addLog(`WebSocket error: ${error.type}`, 'error');
-        setServerStatus('error');
-      };
+      if (connectionState === 'connected') {
+        addLog(`Connection closed: ${event.reason || 'Server disconnected'}`, 'info');
+      }
+      
+      setConnectionState('disconnected');
+      
+      // Don't attempt to reconnect if we're deliberately stopping
+      if (isWaiting && serverStatus === 'online') {
+        handleReconnect();
+      }
+    };
+  };
 
-      socket.onclose = () => {
-        addLog('Disconnected from waiting room', 'info');
-      };
+  // Handle reconnection logic
+  const handleReconnect = () => {
+    if (reconnectAttempts < maxReconnectAttempts) {
+      setConnectionState('reconnecting');
+      setReconnectAttempts(prev => prev + 1);
+      addLog(`Attempting to reconnect (${reconnectAttempts + 1}/${maxReconnectAttempts})...`, 'info');
+      
+      setTimeout(() => {
+        connectToWaitingRoom();
+      }, reconnectDelay);
+    } else {
+      addLog(`Failed to connect after ${maxReconnectAttempts} attempts`, 'error');
+      setServerStatus('error');
+      setConnectionState('disconnected');
+    }
+  };
 
-      return () => socket.close();
+  // Effect for handling saved session
+  useEffect(() => {
+    const savedGameId = localStorage.getItem('gameId');
+    const savedPort = localStorage.getItem('selectedPort');
+    if (savedGameId && savedPort) {
+      onJoinGame(savedGameId, parseInt(savedPort));
+      addLog(`Reconnecting to previous session (Port: ${savedPort})`, 'info');
+    }
+  }, []);
+
+  // Effect for handling WebSocket connection
+  useEffect(() => {
+    // Set up socket connection for waiting room updates
+    if (isWaiting) {
+      // Add a delay after server start before attempting to connect
+      const connectionDelay = 6000; // Increased from 5000
+      const delayTimer = setTimeout(() => {
+        connectToWaitingRoom();
+      }, connectionDelay);
+      
+      return () => {
+        clearTimeout(delayTimer);
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+        if (socketRef.current) {
+          socketRef.current.close();
+          socketRef.current = null;
+        }
+        setConnectionState('disconnected');
+      };
     }
   }, [isWaiting, selectedPort]);
 
@@ -97,6 +200,8 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
         setServerStarted(true);
         setIsWaiting(true);
         setServerStatus('online');
+        setConnectionState('disconnected');
+        setReconnectAttempts(0);
         addLog('Game server started successfully', 'success');
         onCreateGame(selectedPort);
       }
@@ -118,6 +223,21 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
         setIsWaiting(false);
         setWaitingPlayers([]);
         setServerStatus('offline');
+        setConnectionState('disconnected');
+        setReconnectAttempts(0);
+        
+        // Close any existing socket connection
+        if (socketRef.current) {
+          socketRef.current.close();
+          socketRef.current = null;
+        }
+        
+        // Clear any pending timeout
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+        
         addLog('Game server stopped successfully', 'success');
       }
     } catch (error) {
@@ -129,11 +249,13 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
   const handleJoinGame = (e: React.FormEvent) => {
     e.preventDefault();
     if (joinGameId === GAME_ID) {
-      const randomPort = AVAILABLE_PORTS[Math.floor(Math.random() * AVAILABLE_PORTS.length)];
-      setSelectedPort(randomPort);
+      // Use sequential port selection starting from 3002
+      const selectedGamePort = AVAILABLE_PORTS[currentPortIndex];
+      setCurrentPortIndex((prevIndex) => (prevIndex + 1) % AVAILABLE_PORTS.length);
+      setSelectedPort(selectedGamePort);
       setIsWaiting(true);
-      addLog(`Joining game with ID: ${GAME_ID}`, 'info');
-      onJoinGame(GAME_ID, randomPort);
+      addLog(`Joining game with ID: ${GAME_ID} on port ${selectedGamePort}`, 'info');
+      onJoinGame(GAME_ID, selectedGamePort);
       setShowJoinInput(false);
       setJoinGameId('');
     } else {
@@ -167,8 +289,12 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
         </div>
         <div className="text-sm text-white/70">
           <p>Status: {serverStatus.charAt(0).toUpperCase() + serverStatus.slice(1)}</p>
+          <p>Connection: {connectionState.charAt(0).toUpperCase() + connectionState.slice(1)}</p>
           <p>Port: {selectedPort}</p>
           <p>Players Online: {waitingPlayers.length}</p>
+          {connectionState === 'reconnecting' && (
+            <p className="text-yellow-400">Reconnect Attempt: {reconnectAttempts}/{maxReconnectAttempts}</p>
+          )}
         </div>
       </div>
 

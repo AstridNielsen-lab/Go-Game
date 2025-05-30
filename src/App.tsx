@@ -8,6 +8,7 @@ import AITeacher from './components/AITeacher';
 import Footer from './components/Footer';
 import SplashScreen from './components/SplashScreen';
 import PlayerNameScreen from './components/PlayerNameScreen';
+import OnlineGame from './components/OnlineGame';
 import GameTimer from './components/GameTimer';
 import GameLogs from './components/GameLogs';
 import MultiplayerControls from './components/MultiplayerControls';
@@ -20,6 +21,7 @@ import { v4 as uuidv4 } from 'uuid';
 function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [showNameScreen, setShowNameScreen] = useState(false);
+  const [showOnlineGame, setShowOnlineGame] = useState(false);
   const [playerName, setPlayerName] = useState('');
   const [boardState, setBoardState] = useState<BoardState>(createInitialBoardState(19));
   const [playingWithAI, setPlayingWithAI] = useState(false);
@@ -234,6 +236,16 @@ function App() {
     return <PlayerNameScreen onSubmit={handleNameSubmit} />;
   }
 
+  if (showOnlineGame) {
+    return (
+      <OnlineGame 
+        onBack={() => setShowOnlineGame(false)} 
+        onJoinGame={handleJoinGame}
+        playerName={playerName}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden">
       <div className="absolute inset-0 bg-black">
@@ -243,7 +255,15 @@ function App() {
       <main className="relative flex-grow py-8 px-4">
         <div className="max-w-6xl mx-auto">
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold text-center text-white font-serif tracking-wider">Go (Baduk)</h1>
+            <div className="flex items-center gap-4">
+              <h1 className="text-3xl font-bold text-center text-white font-serif tracking-wider">Go (Baduk)</h1>
+              <button
+                onClick={() => setShowOnlineGame(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                <span>Entrar em Jogo Online</span>
+              </button>
+            </div>
             <GameTimer isRunning={!boardState.gameOver} />
           </div>
           
