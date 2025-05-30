@@ -17,8 +17,6 @@ import { generateBestMove } from './utils/aiLogic';
 import { saveGameState, loadGameState, GameState } from './utils/storage';
 import { v4 as uuidv4 } from 'uuid';
 
-const socket = io('http://localhost:3001');
-
 function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [showNameScreen, setShowNameScreen] = useState(false);
@@ -42,11 +40,15 @@ function App() {
       setGameLogs(savedState.logs);
     }
 
-    // Check for game ID in URL
+    // Check for game ID and port in URL
     const urlParams = new URLSearchParams(window.location.search);
     const gameIdFromUrl = urlParams.get('game');
-    if (gameIdFromUrl) {
-      handleJoinGame(gameIdFromUrl);
+    const portFromUrl = urlParams.get('port');
+    
+    if (gameIdFromUrl && portFromUrl) {
+      const socket = io(`http://localhost:${portFromUrl}`);
+      socket.emit('join_game', gameIdFromUrl);
+      setGameId(gameIdFromUrl);
     }
   }, []);
 
