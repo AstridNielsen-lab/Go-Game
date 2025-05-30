@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSound } from 'use-sound';
-import { io } from 'socket.io-client';
+import { io, Socket } from 'socket.io-client';
 import Board from './components/Board';
 import GameControls from './components/GameControls';
 import ScorePanel from './components/ScorePanel';
@@ -26,6 +26,8 @@ function App() {
   const [isAIThinking, setIsAIThinking] = useState(false);
   const [gameLogs, setGameLogs] = useState<{ player: string; move: string; timestamp: string; }[]>([]);
   const [gameId, setGameId] = useState<string | undefined>();
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [currentPort, setCurrentPort] = useState<number | null>(null);
   const [play] = useSound('/sounds/stone.mp3');
   
   useEffect(() => {
@@ -46,31 +48,24 @@ function App() {
     const portFromUrl = urlParams.get('port');
     
     if (gameIdFromUrl && portFromUrl) {
-      const socket = io(`http://localhost:${portFromUrl}`);
-      socket.emit('join_game', gameIdFromUrl);
+      const port = parseInt(portFromUrl);
+      const newSocket = io(`http://localhost:${port}`);
+      setSocket(newSocket);
+      setCurrentPort(port);
       setGameId(gameIdFromUrl);
+      newSocket.emit('join_game', gameIdFromUrl);
     }
+
+    return () => {
+      if (socket) {
+        socket.disconnect();
+      }
+    };
   }, []);
 
   useEffect(() => {
-    if (playerName && boardState.stones.length > 0) {
-      const gameState: GameState = {
-        playerName,
-        stones: boardState.stones,
-        currentPlayer: boardState.currentPlayer,
-        logs: gameLogs,
-      };
-      saveGameState(gameState);
-    }
-  }, [boardState, playerName, gameLogs]);
+    if (!socket) return;
 
-  useEffect(() => {
-    if (playingWithAI && boardState.currentPlayer === 'white' && !boardState.gameOver) {
-      handleAIMove();
-    }
-  }, [boardState.currentPlayer, playingWithAI]);
-
-  useEffect(() => {
     socket.on('game_created', (id) => {
       setGameId(id);
     });
@@ -90,7 +85,25 @@ function App() {
       socket.off('game_joined');
       socket.off('move_made');
     };
-  }, []);
+  }, [socket, playerName]);
+
+  useEffect(() => {
+    if (playerName && boardState.stones.length > 0) {
+      const gameState: GameState = {
+        playerName,
+        stones: boardState.stones,
+        currentPlayer: boardState.currentPlayer,
+        logs: gameLogs,
+      };
+      saveGameState(gameState);
+    }
+  }, [boardState, playerName, gameLogs]);
+
+  useEffect(() => {
+    if (playingWithAI && boardState.currentPlayer === 'white' && !boardState.gameOver) {
+      handleAIMove();
+    }
+  }, [boardState.currentPlayer, playingWithAI]);
 
   const handleSplashComplete = () => {
     setShowSplash(false);
@@ -102,27 +115,33 @@ function App() {
     setShowNameScreen(false);
   };
 
-  const handleCreateGame = () => {
+  const handleCreateGame = (port: number) => {
     const newGameId = uuidv4();
-    socket.emit('create_game', newGameId);
-    handleRestart(); // Start fresh game
+    const newSocket = io(`http://localhost:${port}`);
+    setSocket(newSocket);
+    setCurrentPort(port);
+    newSocket.emit('create_game', newGameId);
+    handleRestart();
   };
 
-  const handleJoinGame = (id: string) => {
-    socket.emit('join_game', id);
-    handleRestart(); // Start fresh game
+  const handleJoinGame = (id: string, port: number) => {
+    const newSocket = io(`http://localhost:${port}`);
+    setSocket(newSocket);
+    setCurrentPort(port);
+    newSocket.emit('join_game', id);
+    handleRestart();
   };
 
-  const addGameLog = (move: string) => {
+  const addGameLog = useCallback((move: string) => {
     const newLog = {
       player: boardState.currentPlayer === 'black' ? playerName : 'AI',
       move,
       timestamp: new Date().toLocaleTimeString(),
     };
     setGameLogs(prev => [...prev, newLog]);
-  };
+  }, [boardState.currentPlayer, playerName]);
   
-  const handlePlaceStone = (position: Position) => {
+  const handlePlaceStone = useCallback((position: Position) => {
     if (boardState.gameOver || isAIThinking) return;
     if (playingWithAI && boardState.currentPlayer === 'white') return;
     
@@ -132,7 +151,7 @@ function App() {
       setBoardState(newBoardState);
       addGameLog(`(${position.x}, ${position.y})`);
 
-      if (gameId) {
+      if (gameId && socket) {
         socket.emit('make_move', {
           gameId,
           move: {
@@ -142,7 +161,7 @@ function App() {
         });
       }
     }
-  };
+  }, [boardState, isAIThinking, playingWithAI, play, addGameLog, gameId, socket, playerName]);
 
   const handleAIMove = async () => {
     setIsAIThinking(true);

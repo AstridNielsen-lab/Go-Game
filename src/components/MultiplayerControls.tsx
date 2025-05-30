@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Share2, Users, Copy, ExternalLink } from 'lucide-react';
-import { io, Socket } from 'socket.io-client';
 import { v4 as uuidv4 } from 'uuid';
 
 interface MultiplayerControlsProps {
-  onJoinGame: (gameId: string) => void;
-  onCreateGame: () => void;
+  onJoinGame: (gameId: string, port: number) => void;
+  onCreateGame: (port: number) => void;
   gameId?: string;
 }
 
@@ -29,8 +28,9 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
   useEffect(() => {
     // Load saved game data
     const savedGameId = localStorage.getItem('gameId');
-    if (savedGameId) {
-      onJoinGame(savedGameId);
+    const savedPort = localStorage.getItem('selectedPort');
+    if (savedGameId && savedPort) {
+      onJoinGame(savedGameId, parseInt(savedPort));
     }
   }, []);
 
@@ -44,9 +44,9 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
   const startServerAndCreateGame = async () => {
     try {
       localStorage.setItem('selectedPort', selectedPort.toString());
-      await fetch(`http://localhost:${selectedPort}/start-server`);
+      await fetch(`http://localhost:3000/start-server?port=${selectedPort}`);
       setServerStarted(true);
-      onCreateGame();
+      onCreateGame(selectedPort);
     } catch (error) {
       console.error('Failed to start server:', error);
     }
@@ -56,7 +56,7 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
     if (!serverStarted) {
       setShowPortSelection(true);
     } else {
-      onCreateGame();
+      onCreateGame(selectedPort);
     }
   };
 
@@ -69,7 +69,7 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
   const handleJoinGame = (e: React.FormEvent) => {
     e.preventDefault();
     if (joinGameId.trim()) {
-      onJoinGame(joinGameId.trim());
+      onJoinGame(joinGameId.trim(), selectedPort);
       setShowJoinInput(false);
       setJoinGameId('');
     }
