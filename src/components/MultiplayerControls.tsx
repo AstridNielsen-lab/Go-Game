@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Share2, Users, Copy, ExternalLink, Loader, Info } from 'lucide-react';
+import { Share2, Users, Copy, ExternalLink, Loader, Info, Power, PowerOff } from 'lucide-react';
 
 interface MultiplayerControlsProps {
   onJoinGame: (gameId: string, port: number) => void;
@@ -33,23 +33,53 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
     if (savedGameId && savedPort) {
       onJoinGame(savedGameId, parseInt(savedPort));
     }
-  }, []);
 
-  useEffect(() => {
-    if (gameId) {
-      localStorage.setItem('gameId', gameId);
+    // Set up socket connection for waiting room updates
+    if (isWaiting) {
+      const socket = new WebSocket(`ws://localhost:${selectedPort}`);
+      
+      socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'waiting_players_updated') {
+          setWaitingPlayers(data.players);
+        } else if (data.type === 'game_ready') {
+          setIsWaiting(false);
+          onJoinGame(GAME_ID, selectedPort);
+        }
+      };
+
+      return () => socket.close();
     }
-  }, [gameId]);
+  }, [isWaiting, selectedPort]);
 
   const startServerAndCreateGame = async () => {
     try {
       localStorage.setItem('selectedPort', selectedPort.toString());
-      await fetch(`http://localhost:3000/start-server?port=${selectedPort}`);
-      setServerStarted(true);
-      setIsWaiting(true);
-      onCreateGame(selectedPort);
+      const response = await fetch(`http://localhost:3000/start-server?port=${selectedPort}`);
+      const data = await response.json();
+      
+      if (data.status === 'Server started') {
+        setServerStarted(true);
+        setIsWaiting(true);
+        onCreateGame(selectedPort);
+      }
     } catch (error) {
       console.error('Failed to start server:', error);
+    }
+  };
+
+  const stopServer = async () => {
+    try {
+      const response = await fetch(`http://localhost:3000/stop-server?port=${selectedPort}`);
+      const data = await response.json();
+      
+      if (data.status === 'Server stopped') {
+        setServerStarted(false);
+        setIsWaiting(false);
+        setWaitingPlayers([]);
+      }
+    } catch (error) {
+      console.error('Failed to stop server:', error);
     }
   };
 
@@ -58,10 +88,10 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
     if (joinGameId === GAME_ID) {
       const randomPort = AVAILABLE_PORTS[Math.floor(Math.random() * AVAILABLE_PORTS.length)];
       setSelectedPort(randomPort);
+      setIsWaiting(true);
       onJoinGame(GAME_ID, randomPort);
       setShowJoinInput(false);
       setJoinGameId('');
-      setIsWaiting(true);
     } else {
       alert('ID do jogo inválido. Use GO2025 para entrar.');
     }
@@ -85,8 +115,8 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
             <li>1. O primeiro jogador deve clicar em "Criar Jogo Online"</li>
             <li>2. O segundo jogador clica em "Entrar em Jogo"</li>
             <li>3. Digite o ID do jogo: GO2025</li>
-            <li>4. Aguarde até que outro jogador se conecte</li>
-            <li>5. O jogo começará automaticamente quando houver 2 jogadores</li>
+            <li>4. Aguarde na sala de espera</li>
+            <li>5. Selecione um jogador para iniciar a partida</li>
           </ul>
           <button 
             onClick={() => setShowInfo(false)}
@@ -101,19 +131,39 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
         <div className="bg-white/10 backdrop-blur-md p-4 rounded-lg shadow-xl">
           <div className="flex items-center gap-2 mb-3">
             <Loader className="animate-spin text-blue-500" size={20} />
-            <h3 className="text-white">Aguardando jogadores...</h3>
+            <h3 className="text-white">Sala de Espera</h3>
           </div>
           {waitingPlayers.length > 0 && (
             <div className="mb-3">
-              <p className="text-sm text-white/70">Jogadores na fila:</p>
-              <ul className="list-disc list-inside">
+              <p className="text-sm text-white/70">Jogadores disponíveis:</p>
+              <ul className="space-y-2">
                 {waitingPlayers.map((player, index) => (
-                  <li key={index} className="text-white/70">{player}</li>
+                  <li 
+                    key={index}
+                    className="flex items-center justify-between bg-white/5 p-2 rounded"
+                  >
+                    <span className="text-white/70">{player}</span>
+                    <button
+                      onClick={() => onJoinGame(GAME_ID, selectedPort)}
+                      className="text-xs bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded"
+                    >
+                      Jogar
+                    </button>
+                  </li>
                 ))}
               </ul>
             </div>
           )}
           <p className="text-sm text-white/50">ID do Jogo: {GAME_ID}</p>
+          <div className="mt-3 flex justify-end">
+            <button
+              onClick={stopServer}
+              className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-1"
+            >
+              <PowerOff size={16} />
+              Parar Servidor
+            </button>
+          </div>
         </div>
       )}
 
@@ -130,9 +180,10 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
           <button
             onClick={startServerAndCreateGame}
             className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 transition-colors"
+            disabled={serverStarted}
           >
             <Share2 size={20} />
-            <span>Criar Jogo Online</span>
+            <span>{serverStarted ? 'Servidor Ativo' : 'Criar Jogo Online'}</span>
           </button>
 
           <button
@@ -142,6 +193,16 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
             <Users size={20} />
             <span>Entrar em Jogo</span>
           </button>
+
+          {serverStarted && (
+            <button
+              onClick={stopServer}
+              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 transition-colors"
+            >
+              <PowerOff size={20} />
+              <span>Parar Servidor</span>
+            </button>
+          )}
         </>
       )}
 
@@ -196,6 +257,13 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
               <ExternalLink size={20} />
               <span>Abrir</span>
             </a>
+            <button
+              onClick={stopServer}
+              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded flex items-center gap-2 transition-colors"
+            >
+              <PowerOff size={20} />
+              <span>Parar</span>
+            </button>
           </div>
         </div>
       )}

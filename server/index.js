@@ -38,23 +38,36 @@ app.get('/start-server', (req, res) => {
         players.push({ id: socket.id, name: playerName });
         waitingPlayers.set('GO2025', players);
         
+        // Broadcast updated waiting list to all clients
         io.emit('waiting_players_updated', players.map(p => p.name));
+      });
 
-        if (players.length >= 2) {
-          const [player1, player2] = players;
+      socket.on('select_opponent', (opponentId) => {
+        const players = waitingPlayers.get('GO2025');
+        const player1 = players.find(p => p.id === socket.id);
+        const player2 = players.find(p => p.id === opponentId);
+
+        if (player1 && player2) {
           const gameId = 'GO2025';
-          
           games.set(gameId, {
             players: [player1.id, player2.id],
             moves: [],
             currentPlayer: 'black'
           });
 
+          // Remove players from waiting list
+          waitingPlayers.set('GO2025', 
+            players.filter(p => p.id !== player1.id && p.id !== player2.id)
+          );
+
+          // Notify players and start the game
           io.to(player1.id).emit('game_ready', { gameId, color: 'black' });
           io.to(player2.id).emit('game_ready', { gameId, color: 'white' });
           
-          waitingPlayers.set('GO2025', players.slice(2));
-          io.emit('waiting_players_updated', players.slice(2).map(p => p.name));
+          // Update waiting list for other players
+          io.emit('waiting_players_updated', 
+            waitingPlayers.get('GO2025').map(p => p.name)
+          );
         }
       });
 
