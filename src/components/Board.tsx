@@ -1,4 +1,5 @@
 import React, { useState, useLayoutEffect, useRef } from 'react';
+import { Maximize2, Minimize2 } from 'lucide-react';
 import Stone from './Stone';
 import { BoardState, Position } from '../types/gameTypes';
 import { getStoneAt, isValidMove } from '../utils/gameLogic';
@@ -12,17 +13,43 @@ interface BoardProps {
 const Board: React.FC<BoardProps> = ({ boardState, onPlaceStone, isAIThinking }) => {
   const [hoveredPosition, setHoveredPosition] = useState<Position | null>(null);
   const [boardSizePixels, setBoardSizePixels] = useState<number>(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const boardRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     const updateBoardSize = () => {
-      const size = Math.min(window.innerWidth, window.innerHeight) * 0.95;
-      setBoardSizePixels(size);
+      if (isFullscreen && containerRef.current) {
+        const size = Math.min(window.innerWidth, window.innerHeight) * 0.95;
+        setBoardSizePixels(size);
+      } else {
+        const size = Math.min(window.innerWidth, window.innerHeight) * 0.95;
+        setBoardSizePixels(size);
+      }
     };
 
     updateBoardSize();
     window.addEventListener('resize', updateBoardSize);
     return () => window.removeEventListener('resize', updateBoardSize);
+  }, [isFullscreen]);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
+
+  useLayoutEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
   const cellSize = boardSizePixels / boardState.boardSize;
@@ -147,18 +174,27 @@ const Board: React.FC<BoardProps> = ({ boardState, onPlaceStone, isAIThinking })
 
   return (
     <div
-      className="board-wrapper"
+      ref={containerRef}
+      className="board-wrapper relative"
       style={{
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        height: '100vh',
+        height: isFullscreen ? '100vh' : '100vh',
         backgroundColor: '#222',
         padding: '1rem',
         boxSizing: 'border-box',
         position: 'relative',
       }}
     >
+      <button
+        onClick={toggleFullscreen}
+        className="absolute top-4 right-4 z-50 bg-white/10 hover:bg-white/20 p-2 rounded-full backdrop-blur-sm transition-colors"
+        aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+      >
+        {isFullscreen ? <Minimize2 size={24} className="text-white" /> : <Maximize2 size={24} className="text-white" />}
+      </button>
+      
       <div
         ref={boardRef}
         className="board"
