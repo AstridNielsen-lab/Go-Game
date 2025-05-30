@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Share2, Users, Copy, ExternalLink, Loader } from 'lucide-react';
+import { Share2, Users, Copy, ExternalLink, Loader, Info } from 'lucide-react';
 
 interface MultiplayerControlsProps {
   onJoinGame: (gameId: string, port: number) => void;
@@ -21,6 +21,7 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
   const [serverStarted, setServerStarted] = useState(false);
   const [isWaiting, setIsWaiting] = useState(false);
   const [waitingPlayers, setWaitingPlayers] = useState<string[]>([]);
+  const [showInfo, setShowInfo] = useState(false);
   const [selectedPort, setSelectedPort] = useState(() => {
     const savedPort = localStorage.getItem('selectedPort');
     return savedPort ? parseInt(savedPort) : 3001;
@@ -77,10 +78,29 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
 
   return (
     <div className="fixed bottom-4 right-4 flex flex-col gap-2">
+      {showInfo && (
+        <div className="bg-white/10 backdrop-blur-md p-4 rounded-lg shadow-xl max-w-md">
+          <h3 className="text-white font-semibold mb-2">Como Jogar Online</h3>
+          <ul className="text-white/80 text-sm space-y-2">
+            <li>1. O primeiro jogador deve clicar em "Criar Jogo Online"</li>
+            <li>2. O segundo jogador clica em "Entrar em Jogo"</li>
+            <li>3. Digite o ID do jogo: GO2025</li>
+            <li>4. Aguarde até que outro jogador se conecte</li>
+            <li>5. O jogo começará automaticamente quando houver 2 jogadores</li>
+          </ul>
+          <button 
+            onClick={() => setShowInfo(false)}
+            className="mt-3 text-sm text-white/60 hover:text-white"
+          >
+            Fechar
+          </button>
+        </div>
+      )}
+
       {isWaiting && (
         <div className="bg-white/10 backdrop-blur-md p-4 rounded-lg shadow-xl">
           <div className="flex items-center gap-2 mb-3">
-            <Loader className="animate-spin text-blue-500\" size={20} />
+            <Loader className="animate-spin text-blue-500" size={20} />
             <h3 className="text-white">Aguardando jogadores...</h3>
           </div>
           {waitingPlayers.length > 0 && (
@@ -99,6 +119,14 @@ const MultiplayerControls: React.FC<MultiplayerControlsProps> = ({
 
       {!gameId && !isWaiting && (
         <>
+          <button
+            onClick={() => setShowInfo(!showInfo)}
+            className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 transition-colors"
+          >
+            <Info size={20} />
+            <span>Como Jogar Online</span>
+          </button>
+
           <button
             onClick={startServerAndCreateGame}
             className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 transition-colors"
