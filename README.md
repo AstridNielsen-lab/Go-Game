@@ -1,34 +1,32 @@
 ![image](https://github.com/user-attachments/assets/69271d13-338b-448f-aae1-96539ac9e4b7)
 
+# 🚨 Problema com WebSocket no Jogo Go (Baduk) 🚨
+# 🚨 Preciso de Ajuda! 🚨  
 
+Olá, desenvolvedores!  
 
-🆘 Erro de Porta no Jogo Go (Baduk)🆘
-🆘 Ajuda Técnica Solicitada 🆘
+Estou enfrentando um problema crítico no meu projeto **Go Game**, hospedado no Vercel. O jogo está disponível publicamente e seu código pode ser acessado no GitHub:  
 
-Olá, colegas desenvolvedores!
+🔗 **Site:** [https://go-game-self.vercel.app](https://go-game-self.vercel.app)  
+🔗 **Repositório:** [https://github.com/AstridNielsen-lab/Go-Game](https://github.com/AstridNielsen-lab/Go-Game)  
 
-Estou enfrentando um problema com um projeto de jogo de Go (Baduk), hospedado no Vercel. O site está disponível publicamente no link abaixo, assim como o repositório GitHub:
+## 🛑 O Problema  
+Ao tentar criar ou ingressar em uma partida online, o servidor WebSocket apresenta um erro de conexão na porta **3003**, impedindo o funcionamento do multiplayer. A mensagem retornada é:  
 
-🔗 Site: https://go-game-self.vercel.app
-🔗 Repositório: https://github.com/AstridNielsen-lab/Go-Game 
-
-🛑 Problema:
-Ao tentar criar ou entrar em um jogo online, o servidor WebSocket apresenta erro de porta (Port: 3003) e falha ao se conectar, gerar ou encerrar sessões de jogo. A mensagem retornada é:
-
-
+```
 Failed to start server: TypeError: Failed to fetch  
 Port: 3003  
 Players Online: 0  
 WebSocket error  
+```
 
-📌 Hipótese:
+## 📌 Possível Causa  
+Parece que o WebSocket tenta escutar na porta **3003**, mas, devido a limitações do ambiente serverless do Vercel, essa operação não é permitida. Isso compromete completamente a funcionalidade online do jogo.  
 
-Parece que o servidor WebSocket tenta escutar na porta 3003, mas por limitações do ambiente Vercel (que é serverless e não permite escuta direta de portas TCP/UDP), a sincronização falha. Isso compromete a funcionalidade online do jogo.
+## 🎯 O Que Preciso  
+Estou buscando sugestões e alternativas para:  
+✅ Tornar o multiplayer funcional em um ambiente compatível com WebSocket.  
+✅ Migrar o backend para um serviço que permita escutar na porta 3003 (exemplos: **Heroku, Railway, Render**, ou outras opções viáveis).  
+✅ Minimizar a necessidade de grandes mudanças no projeto.  
 
-🎯 Objetivo:
-Preciso de sugestões ou alternativas para:
-Tornar o multiplayer funcional em ambiente compatível com WebSocket;
-Redirecionar o backend para outro serviço que permita escutar na porta 3003 (como Heroku, Railway, Render ou outro backend com suporte a WebSocket);
-Alternativas viáveis que mantenham o projeto 100% funcional com mínimo de migração.
-🛠️ Toda sugestão técnica ou recomendação de stack será muito bem-vinda!
-Gratidão desde já a todos!
+Se alguém tiver experiência com WebSocket em ambientes similares e puder compartilhar ideias ou sugestões, eu ficaria extremamente grato! 🙏  
